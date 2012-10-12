@@ -1,0 +1,197 @@
+#!/bin/bash
+#
+# XPStart: X-Plane Launcher script
+#
+# This script starts a multi-headed X-Plane session. It:
+#
+#  * Starts a new X-Server on vt12
+#  * Mounts an iso image of DVD #1
+#  * Launches jhat
+#
+# It will create input device nodes in ./dev/input if they
+# don't exist (for scenarios where udev isn't there).
+#
+# It uses "sudo" for privileged tasks.
+#
+#                                                       JL 20121004
+#
+#
+# https://github.com/johnlane/xplane-utils
+#
+# Copyright (c) 2012 John Lane
+# 
+# MIT License
+# 
+# Permission is hereby granted, free of charge, to any person obtaining
+# a copy of this software and associated documentation files (the
+# "Software"), to deal in the Software without restriction, including
+# without limitation the rights to use, copy, modify, merge, publish,
+# distribute, sublicense, and/or sell copies of the Software, and to
+# permit persons to whom the Software is furnished to do so, subject to
+# the following conditions:
+# 
+# The above copyright notice and this permission notice shall be
+# included in all copies or substantial portions of the Software.
+# 
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+# EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+# MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+# NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
+# LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
+# OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
+# WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+# 
+# http://www.opensource.org/licenses/mit-license.php
+#
+
+function abort {
+   echo "$1. Cannot continue."
+   exit 1
+}
+
+
+# X Display to use (and virtual terminal to put it on)
+xd=12
+
+# Start X display if not running (xinit relaunches this script)
+if [[ ! -e /tmp/.X${xd}-lock ]]; then
+
+    xinit $(readlink -f $0) -- :${xd} vt${xd}
+
+else # X is running: launch applications
+
+    # Our path
+    rundir=$(dirname "$0")
+
+    #
+    # Configuration of X-Plane screens
+    # each screen is a separate instance of X-Plane
+    # screens are launched in order on xorg screens 0,1,2...
+    #
+    screens=(${rundir}/slave-left ${rundir}/master-centre ${rundir}/slave-right)
+    master=1
+
+    # If xsetroot is available, it will be used to set the
+    # the X-Cursor (otherwise no cursor may appear because
+    # we don't run a window manager)
+    # For cursors, see http://tronche.com/gui/x/xlib/appendix/b
+    xsetroot=$(which xsetroot)
+    cursor=left_ptr
+
+    #
+    # Work out which version of X-Plane it is
+    #
+    [[ -f ${screens[master]}/Output/preferences/X-Plane.prf ]] || abort "${screens[master]} has no preferences file"
+
+    case $(grep "[0-9]* version" ${screens[master]}/Output/preferences/X-Plane.prf | awk '{print $1}') in
+        10)
+            version=10
+            input="event"
+            ;;
+        9*)
+            version=9
+            input="js"
+            ;;
+
+        *)
+            abort "Unknown version"
+            ;;
+    esac
+
+    #
+    # Mount DVD1 iso, if available
+    #
+        
+    # DVD #1 image
+    dvd=${rundir}/iso/xplane_${version}_dvd1.iso
+
+    if [[ -e ${dvd} ]]; then
+
+        # Mount point where DVD will be mounted
+        mnt_point=/mnt
+        
+        if grep -q "$mnt_point" /proc/mounts 2>/dev/null; then
+            echo something is already mounted on "$mnt_point", let's hope it's the x-plane dvd!
+        else
+
+            # test the image
+            file ${dvd} | grep "ISO 9660 CD-ROM filesystem data 'XPLANE9" > /dev/null
+
+            # mount recognised image only
+            if [[ $? == 0 ]]; then
+                echo loop mounting the dvd image "${dvd}"...
+                sudo mount -o loop "$dvd" "$mnt_point"
+                dvd_mount=${mnt_point}
+            else
+                echo 'Not mounting "${dvd}" because it is not the X-Plane DVD.'
+            fi
+        fi
+    
+    fi
+
+    #
+    # Look for devices and do any set-up on them
+    #
+    all_input_devices=(Yoke Pedals)
+    hat_switch_device=Yoke
+    hat_switch_xaxis=5
+    hat_switch_zaxis=6
+
+    for input_device in /sys/class/input/${input}*; do
+
+        for match in ${all_input_devices[@]}; do
+
+            if grep -q "$match" $input_device/device/name 2>/dev/null; then
+
+                device_node=/dev/input/$(basename $input_device)
+                echo "'$match' found at $input_device ($(cat $input_device/device/name)) on $device_node"
+
+                # Try to create device node if it doesn't exist
+                if [[ ! -e $device_node ]]; then
+
+                    major=$(awk -F ':' '{print $1}' $input_device/dev)
+                    minor=$(awk -F ':' '{print $2}' $input_device/dev)
+                    echo "Creating device node $device_node"
+                    sudo mknod -m 644 $device_node c $major $minor
+
+                fi
+
+                # Launch jhat, if available, for the hat switch device
+                if [[ -f ${rundir}/jhat && -x ${rundir}/jhat && $match == $hat_switch_device ]]; then
+                    echo "Launching jhat for $device_node (xaxis=$hat_switch_xaxis zaxis=$hat_switch_zaxis)"
+                    "${rundir}/jhat" $device_node $hat_switch_xaxis $hat_switch_zaxis &
+                    jhat_pid=$!
+                fi
+
+            fi
+
+        done
+
+    done
+
+    #
+    # Launch X-Plane screens (backgrounded)
+    #
+    for screen in $(seq 0 $((${#screens[@]}-1))); do
+
+        # Select the display screen
+        DISPLAY=":${xd}.${screen}"
+
+        # Set the X Pointer
+        [[ -n ${xsetroot} ]] && ${xsetroot} -cursor_name ${cursor}
+
+        # Start X-Plane and add to wait list
+        ${screens[$screen]}/X-Plane-i686 &
+        screen_pids+="$! "
+    done
+
+    # Wait here until the X-Plane screens terminate
+    wait $screen_pids
+
+    #
+    # Clean Up
+    # 
+    [[ -n ${jhat_pid} ]] && kill ${jhat_pid}
+    [[ -n ${dvd_mount} ]] && sudo umount ${dvd_mount}
+
+fi

@@ -1,0 +1,5 @@
+/iso*
+/X-Plane*
+/initial_directory_list
+*.un~
+*.swp

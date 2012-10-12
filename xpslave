@@ -1,0 +1,208 @@
+#!/bin/bash
+#
+# XPSlave: Setup script for X-Plane slaves
+#
+# Configures multiple copies of X-plane
+#
+# Usage:
+#
+#     xpslave master [-f] slave1...slaven
+#
+# The master is assumed to exist
+# The slaves must not exist unless -f is given, when
+# the slaves will be destroyed if they already exist
+#
+#                                      JL20121008
+#
+# https://github.com/johnlane/xplane-utils
+#
+# Copyright (c) 2012 John Lane
+# 
+# MIT License
+# 
+# Permission is hereby granted, free of charge, to any person obtaining
+# a copy of this software and associated documentation files (the
+# "Software"), to deal in the Software without restriction, including
+# without limitation the rights to use, copy, modify, merge, publish,
+# distribute, sublicense, and/or sell copies of the Software, and to
+# permit persons to whom the Software is furnished to do so, subject to
+# the following conditions:
+# 
+# The above copyright notice and this permission notice shall be
+# included in all copies or substantial portions of the Software.
+# 
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+# EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+# MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+# NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
+# LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
+# OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
+# WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+# 
+# http://www.opensource.org/licenses/mit-license.php
+#
+
+# Our path
+rundir=$(dirname $(readlink -f "$0"))
+
+function abort {
+   echo "$1. Cannot continue."
+   exit 1
+}
+
+function pushdir {
+    pushd "$1" > /dev/null
+}
+
+function popdir {
+    popd > /dev/null
+}
+
+function array_delete_index {
+    eval unset $1[0]
+    eval $1=\(\"\${$1[@]}\"\)
+}
+ 
+function array_shift {
+    array_delete_index $1 0
+}
+
+# master copy of X-Plane
+master=$(readlink -f "$1")
+shift
+
+# force option deletes any existing slaves
+if [[ "$1" == "-f" ]]; then
+    shift
+    rm -rf $*
+fi
+
+#
+# Settings defaults
+#
+master_rcv_ip=127.0.0.1      # IP address the master receives on
+master_snd_ip=127.0.0.2      # IP address the master sends to
+master_next_slave_id=19      # suffix of slave in master config
+master_field_of_view=60      # 60=16:10 45=4:3 display (XP10 ONLY)
+
+slave_next_port=49010        # will use ports incrementally from here
+slave_master_id=35           # suffix of master in slave config
+slave_field_of_view=(45 45)  # 60=16:10 45=4:3 display (XP10 ONLY)
+slave_offset_lateral=(-45 +45)
+
+#
+# Preferences files
+#
+prefs="Output/preferences"
+xplane_prefs="${prefs}/X-Plane.prf"
+master_xplane_prefs=${master}/${xplane_prefs}
+
+[[ -d ${master} ]] || abort "'${master}' does not exist"
+
+slaves=()
+for slave in $*
+do
+    [[ -d ${slave} ]] && abort "'${slave}' already exists"
+    slaves+=(${slave})
+done
+
+#
+# Work out which version of X-Plane it is
+#
+[[ -f ${master_xplane_prefs} ]] || abort "${master} has no preferences file"
+
+pref_file_header=$(head -2 ${master_xplane_prefs})
+
+case $(echo -e "${pref_file_header}"| tail -1 | awk '{print $1}') in
+    10)
+        version=10
+        screen_prefs="${prefs}/X-Plane Screen Res.prf"
+        ;;
+    9*)
+        version=9
+        screen_prefs="${prefs}/Screen Res.prf"
+        master_field_of_view=45
+        ;;
+
+    *)
+        abort "Unknown version"
+        ;;
+esac
+
+master_screen_prefs=${master}/${screen_prefs}
+
+# Get master's ports
+master_snd_port=$(grep "_snd_port" "${master_xplane_prefs}" | awk '{print $2}')
+master_rcv_port=$(grep "_rcv_port" "${master_xplane_prefs}" | awk '{print $2}')
+echo -e "$master_xplane_prefs\trx:$master_rcv_port tx:$master_snd_port"
+
+# Set master to full-screen
+sed -i -e "s/\(_is_full_ALL\) [0-9]/\\1 1/" "${master_screen_prefs}"
+
+# Enable framerate display
+sed -i -e "s/\(_Breal0\) [0-9]/\\1 1/" "${master_xplane_prefs}"
+
+# Create slave copy
+for slave in $*
+do
+
+    slave_dir=$(readlink -f "$slave")
+    slave_xplane_prefs="${slave_dir}/${xplane_prefs}"
+    slave_screen_prefs="${slave_dir}/${screen_prefs}"
+
+    slave_rcv_port=${slave_next_port} && let slave_next_port++
+    slave_snd_port=${slave_next_port} && let slave_next_port++
+
+    master_slave_id=$master_next_slave_id && let master_next_slave_id++
+
+    echo -e "$slave_xplane_prefs\trx:$slave_rcv_port tx:$slave_snd_port"
+
+    # Create slave dir as a symlinked copy of master
+    mkdir -p ${slave_dir}
+    pushdir ${slave_dir}
+    ln -s ${master}/* ./
+    rm Output *.txt X-Plane-i686
+    mkdir Output
+    ln ${master}/X-Plane-i686 . # executable needs to be real: use hard link
+    mkdir -p $(dirname ${slave_xplane_prefs})
+
+    # Create empty slave configuration files
+    echo -e "${pref_file_header}" > "${slave_xplane_prefs}"
+    echo -e "${pref_file_header}" > "${slave_screen_prefs}"
+
+    # Set the slave's receive and send UDP ports
+    echo -e "_rcv_port ${slave_rcv_port}\n_snd_port ${slave_snd_port}" >> "${slave_xplane_prefs}"
+
+    # Set slave to full-screen
+    echo    "_Breal0 1" >> "${slave_xplane_prefs}"
+
+    # Enable framerate display
+    echo "_is_full_ALL 1" >> "${slave_screen_prefs}"
+
+    # Set the slave's visual offset
+    slave_lateral_offset=${slave_offset_lateral[0]}
+    if [[ -n ${slave_lateral_offset} ]]; then
+        array_shift slave_offset_lateral
+        echo "_off_lat_deg ${slave_lateral_offset}" >> "${slave_xplane_prefs}"
+    fi
+ 
+    # Set the slave's field of view (for version 10 only)
+    if [[ ${version} == 10 ]]; then
+        slave_fov=${slave_field_of_view[0]}
+        if [[ -n ${slave_fov} ]]; then
+            array_shift slave_field_of_view
+            echo "_FOVx ${slave_fov}" >> "${slave_xplane_prefs}"
+        fi
+    fi
+
+    # Turn sound off on the slaves
+    echo -e "_sound_on 0\n_voice_on 0\n_text_out 0" >> "${slave_xplane_prefs}"
+
+    # Set the slave's ports in the master's configuration file
+    sed -i -e "s/\(_snd_ip_str${master_slave_id}\) .*/\\1 ${master_snd_ip}/" \
+           -e "s/\(_snd_pt_str${master_slave_id}\) [0-9]*/\\1 ${slave_rcv_port}/" \
+           -e "s/\(_snd_use_ip${master_slave_id}\) [0-9]/\\1 1/" "${master_xplane_prefs}"
+
+    popdir 
+
+done

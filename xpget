@@ -1,0 +1,88 @@
+#!/bin/bash
+#
+# XPGet: Quick 'n' dirty script to download stuff for X-Plane.
+#
+# 
+# https://github.com/johnlane/xplane-utils
+#
+# Copyright (c) 2012 John Lane
+# 
+# MIT License
+# 
+# Permission is hereby granted, free of charge, to any person obtaining
+# a copy of this software and associated documentation files (the
+# "Software"), to deal in the Software without restriction, including
+# without limitation the rights to use, copy, modify, merge, publish,
+# distribute, sublicense, and/or sell copies of the Software, and to
+# permit persons to whom the Software is furnished to do so, subject to
+# the following conditions:
+# 
+# The above copyright notice and this permission notice shall be
+# included in all copies or substantial portions of the Software.
+# 
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+# EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+# MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+# NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
+# LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
+# OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
+# WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+# 
+# http://www.opensource.org/licenses/mit-license.php
+#
+
+# Default to X-Plane-9
+ver=${1:-9}
+
+function abort {
+   echo "$1. Cannot continue."
+   exit 1
+}
+
+function depend {
+
+    for dep in $*
+    do
+        $(which ${dep} >/dev/null 2>&1) || abort "I need ${dep} but I can't find it"
+    done
+}
+
+# Dependencies
+depend git wget unzip
+
+# Download for specific versions
+case ${ver} in
+    -9 | 9)
+        # X-Plane-9
+        for f in DemoInstaller Updater DVDInstaller; do
+        
+            wget http://www.x-plane.com/update/installers9/X-Plane${f}Linux.zip
+            unzip X-Plane${f}Linux.zip
+            rm X-Plane${f}Linux.zip
+        
+        done
+        wget http://www.x-plane.com/files/manuals/X-Plane_Desktop_manual.pdf
+        ;;
+    -10 | 10)
+        # X-Plane-10
+        for f in DemoInstaller Installer; do
+            wget http://www.x-plane.com/update/installers10/X-Plane10${f}Linux.zip
+            unzip X-Plane10${f}Linux.zip
+            rm X-Plane10${f}Linux.zip
+        done
+        wget http://www.x-plane.com/files/manuals/X-Plane_10_Desktop_manual.pdf
+        ;;
+    *)
+        echo "Don't know what ${ver} means. Sorry."
+        exit -1
+        ;;
+esac
+
+# Downloads for all versions
+
+# ISOMounter
+git clone --depth 1 git://github.com/johnlane/isomounter
+
+# JHat (commented by deault because xplane-utils includes jhat executable)
+# git clone --depth 1 git://github.com/fugalh/jhat.git
+

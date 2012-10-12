@@ -1,0 +1,84 @@
+#!/bin/bash
+#
+# XPiso: X-Plane DVD copier
+#
+# This script makes iso copy of X-Plane DVD
+#
+#                                                       JL 20121004
+#
+# If `isoinfo` is available it will be used to glean the block
+# size of the disc. On archlinux this is in the `cdrkit` package.
+#
+# https://github.com/johnlane/xplane-utils
+#
+# Copyright (c) 2012 John Lane
+# 
+# MIT License
+# 
+# Permission is hereby granted, free of charge, to any person obtaining
+# a copy of this software and associated documentation files (the
+# "Software"), to deal in the Software without restriction, including
+# without limitation the rights to use, copy, modify, merge, publish,
+# distribute, sublicense, and/or sell copies of the Software, and to
+# permit persons to whom the Software is furnished to do so, subject to
+# the following conditions:
+# 
+# The above copyright notice and this permission notice shall be
+# included in all copies or substantial portions of the Software.
+# 
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+# EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+# MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+# NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
+# LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
+# OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
+# WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+# 
+# http://www.opensource.org/licenses/mit-license.php
+#
+
+function abort {
+   echo "$1. Cannot continue."
+   exit 1
+}
+
+# Our path
+rundir=$(dirname "$0")
+isodir=${rundir}/iso
+
+disc=${2:-/dev/sr0}
+
+# Find out what the disc is
+mnt=$(mktemp -d)
+sudo mount ${disc} ${mnt} 2> /dev/null || abort "Failed to mount DVD"
+if [[ -f ${mnt}/dvd_version.txt ]]; then
+    disc_number=1
+    xp_version=$(grep VERSION /${mnt}/dvd_version.txt | awk '{print $NF}')
+elif [ -f ${mnt}/README*.txt ]; then
+    disc_number=$(head -1 /${mnt}/README*.txt | awk '{print $NF}')
+    xp_version=$(head -1 /${mnt}/README*.txt | awk '{print $4}')
+fi
+sudo umount ${mnt} 2> /dev/null
+
+[[ -z ${disc_number} ]] && abort "Unable to determine what that disc is"
+    
+iso=${isodir}/xplane_${xp_version}_dvd${disc_number}.iso
+
+[[ -e ${iso} ]] && abort "${iso} already exists (${iso})"
+
+echo "copying dvd ${disc_number} from ${disc} to ${iso}"
+
+isoinfo=$(which isoinfo 2>/dev/null)
+
+bs=2048
+if [[ -z ${isoinfo} ]]; then
+    echo "Assuming block size=${bs}"
+else
+    bs=`isoinfo -d -i $disc | grep "^Logical block size is:" | cut -d " " -f 5`
+    [[ -z ${bs} ]] && echo "No block size reported by isoinfo: assuming block size=${bs}"
+fi
+
+mkdir -p ${isodir}
+dd if=${disc} of=${iso} bs=${bs}
+echo "ISO image ${iso} created:"
+ls -l $iso
