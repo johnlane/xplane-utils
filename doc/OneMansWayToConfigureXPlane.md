@@ -233,7 +233,7 @@ on my system. *YMMV*):
     $ ./xpiso
     $ run32 isomounter "X-Plane 10 Installer Linux"
       (select DVD 1 and install to default location)
-    $ mv ~/"X-Plane 10 Demo" master-centre
+    $ mv ~/"X-Plane 10" master-centre
     $ run32 master-centre/X-Plane-i686
       (Verify it works, and then exit. This writes master configs)
     $ ./xpslave master-centre slave-{left,right}
