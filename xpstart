@@ -115,7 +115,7 @@ else # X is running: launch applications
         else
 
             # test the image
-            file ${dvd} | grep "ISO 9660 CD-ROM filesystem data 'XPLANE9" > /dev/null
+            file ${dvd} | grep "ISO 9660 CD-ROM filesystem data 'XPLANE${version}" > /dev/null
 
             # mount recognised image only
             if [[ $? == 0 ]]; then

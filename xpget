@@ -31,11 +31,15 @@
 # http://www.opensource.org/licenses/mit-license.php
 #
 
-# Default to X-Plane-9
-ver=${1:-9}
+function cleanup {
+    [[ -n ${dvd} ]] && mount | grep "${dvd}" > /dev/null && sudo umount ${dvd}
+}
+
+trap cleanup EXIT
 
 function abort {
    echo "$1. Cannot continue."
+   cleanup
    exit 1
 }
 
@@ -50,33 +54,73 @@ function depend {
 # Dependencies
 depend git wget unzip
 
+# Mount DVD drive if device given on command line
+if [[ -b ${1} ]]; then
+    dvd_device=${1}
+    dvd=$(mktemp -d)
+    echo "mounting disc in ${dvd_device}"
+    sudo mount -r ${dvd_device} ${dvd} > /dev/null || abort "Unable to mount ${dvd_device}"
+    shift # remove arg from command line
+fi
+
+# Default to X-Plane-10
+ver=${1:-10}
+
+# Look for DVD
+if [[ -n ${dvd} ]]; then
+    # test the image
+    if [[ ${ver} != $(grep "VERSION" ${dvd}/dvd_version.txt 2> /dev/null | awk '{print $3}') ]]; then
+        abort "That isn't the DVD for version ${ver}"
+    fi
+fi
+
+function get_first {
+
+   url_regex='(https?|ftp|file)://[-A-Za-z0-9\+&@#/%?=~_|!:,.;]*[-A-Za-z0-9\+&@#/%=~_|]'
+
+   for i in "$@"; do
+       if [[ -f "$i" ]]; then
+           echo "Copying $i..."
+           cp -f "$i" . && break
+       elif [[ $i =~ $url_regex ]]; then
+           echo "Downloading $i..."
+           wget -N "$i" && break
+       fi
+   done
+
+}
+
+
 # Download for specific versions
 case ${ver} in
     -9 | 9)
         # X-Plane-9
-        for f in DemoInstaller Updater DVDInstaller; do
-        
-            wget http://www.x-plane.com/update/installers9/X-Plane${f}Linux.zip
-            unzip X-Plane${f}Linux.zip
-            rm X-Plane${f}Linux.zip
-        
-        done
-        wget http://www.x-plane.com/files/manuals/X-Plane_Desktop_manual.pdf
+        get_first http://www.x-plane.com/update/installers9/X-PlaneDemoInstallerLinux.zip
+        get_first http://www.x-plane.com/update/installers9/X-PlaneUpdaterLinux.zip
+        get_first ${dvd}/Installer_Linux http://www.x-plane.com/update/installers9/X-PlaneDVDInstallerLinux.zip
+        get_first http://www.x-plane.com/files/manuals/X-Plane_Desktop_manual.pdf
         ;;
     -10 | 10)
         # X-Plane-10
-        for f in DemoInstaller Installer; do
-            wget http://www.x-plane.com/update/installers10/X-Plane10${f}Linux.zip
-            unzip X-Plane10${f}Linux.zip
-            rm X-Plane10${f}Linux.zip
-        done
-        wget http://www.x-plane.com/files/manuals/X-Plane_10_Desktop_manual.pdf
+        get_first http://www.x-plane.com/update/installers10/X-Plane10DemoInstallerLinux.zip 
+        get_first "${dvd}/X-Plane 10 Installer Linux" http://www.x-plane.com/update/installers10/X-Plane10InstallerLinux.zip
+        get_first "${dvd}/X-Plane 10/Instructions/X-Plane_10_manual.pdf.zip" http://www.x-plane.com/files/manuals/X-Plane_10_Desktop_manual.pdf
+        get_first "${dvd}/X-Plane 10/Instructions/Plane-Maker_10_manual.pdf.zip" http://www.x-plane.com/files/manuals/Plane_Maker_manual.pdf
+        get_first "${dvd}//X-Plane 10/Instructions/X-Plane 10 key commands.rtf.zip" 
         ;;
     *)
         echo "Don't know what ${ver} means. Sorry."
         exit -1
         ;;
 esac
+
+# Unzip
+for zip in *.zip
+do      
+    unzip -o "${zip}"
+    rm -f "${zip}"
+done    
+
 
 # Downloads for all versions
 

@@ -46,7 +46,7 @@ function abort {
 rundir=$(dirname "$0")
 isodir=${rundir}/iso
 
-disc=${2:-/dev/sr0}
+disc=${1:-/dev/sr0}
 
 # Find out what the disc is
 mnt=$(mktemp -d)
@@ -55,8 +55,12 @@ if [[ -f ${mnt}/dvd_version.txt ]]; then
     disc_number=1
     xp_version=$(grep VERSION /${mnt}/dvd_version.txt | awk '{print $NF}')
 elif [ -f ${mnt}/README*.txt ]; then
-    disc_number=$(head -1 /${mnt}/README*.txt | awk '{print $NF}')
     xp_version=$(head -1 /${mnt}/README*.txt | awk '{print $4}')
+    if [[ $xp_version = 10 ]]; then
+        disc_number=$(head -1 /${mnt}/README*.txt | awk '{print $6}')
+    else
+        disc_number=$(head -1 /${mnt}/README*.txt | awk '{print $NF}')
+    fi
 fi
 sudo umount ${mnt} 2> /dev/null
 
