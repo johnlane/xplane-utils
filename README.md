@@ -7,7 +7,7 @@ set-up and running of X-Plane in a multi-headed configuration.
 
 (this file is formatted with [MarkDown](http://www.showdown.im))
 
-John Lane, 121012
+John Lane
 
 Utilities
 ---------
@@ -33,7 +33,7 @@ will create slaves suitable for use by xpstart, described next.
 
 ### xpstart
 
-`xpstart` launces a new multi-headed X-Plane session. It launches
+`xpstart` launches a new multi-headed X-Plane session. It launches
 a new X-Server (it assumes an appropriate xorg.conf with sufficient
  X-screens configured).
 
@@ -42,12 +42,39 @@ and `slave-right`.
 
 ### xpget
 
-`xpget` downloads useful X-Plane files from the internet.
+Use `xpget` to get installers, documentation and other useful files from
+the internet, where available, from an inserted X-Plane DVD.
+
+Usage:
+
+    $ xpget [cdrom-device] [x-plane-version]
+
+Examples:
+
+  * Default, internet get for version 10
+
+        $ xpget
+
+  * DVD + internet get for version 10
+
+        $ xpget /dev/sr0
+
+  * internet get for version 9
+
+        $ xpget 9
+
+  * DVD + internet get for version 9
+
+        $ xpget /dev/sr0 9
 
 ### xpiso
 
 `xpiso` copies a DVD into an iso image, stores and names it appropriately
 for use by the other scripts.
+
+Usage:
+
+    $ xpiso [cdrom-device]
 
 ### Other Files
 
@@ -66,7 +93,7 @@ Documentation
 
 For anyone interested in more details,  I have written *One Man's Way
 to Configure X-Plane* which explains my set-up and how my utilitles
-work. It's in the *doc* directory along with some my xorg configuration
+work. It's in the *doc* directory along with my xorg configuration
 files.
 
 (Read `doc/OneMansWayToConfigureXPlane.md` for more information.)
@@ -83,23 +110,23 @@ Get `xplane-utils`:
 
 Get stuff
 
-    $ ./xpget
+    $ ./xpget 9
 
 Run the Installer
 
     $ ./"X-Plane Demo Installer Linux"
 
-Move the and rename install: from `~` to `master-centre`:
+Move and rename the install: from `~` to `master-centre`:
 
     $ mv ~/"X-Plane 9 Demo" master_centre
 
 Run the demo copy (in `master-centre`) and make sure it works. Be happy,
 buy the full version.
 
-If you have the full version, make an iso of DVD#1 (needed for run-time
-validation):
+If you have the full version, put DVD#1 in your drive and make an iso copy
+of it (needed for run-time validation):
 
-    $ ./xpiso 1
+    $ ./xpiso
 
 This will create a file called `iso/xplane_9_dvd1.iso`.
 
@@ -110,7 +137,6 @@ Set up multi-head: create slaves.
 Run:
 
     $ ./xpstart
-
 
 Scope
 -----

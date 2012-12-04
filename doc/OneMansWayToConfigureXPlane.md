@@ -60,7 +60,7 @@ independently of my dekstop. My X-Org configuration consists of two files:
 
 When I run X-Plane, I first launch a new X-Server on a separate vt. Because the
 initiation of the X-Server automatically switches the current vt to the one where
-that X-Server is running, this is transparent. it remains transparent when that
+that X-Server is running, this is transparent. It remains transparent when that
 X-Server exits because the vt is automatically switched back to the one it was on
 previously. At least that's what happens for me. You can also switch back and
 forth by using the `<CONTROL>+<ALT>+<FnKey>` key combination at any time.
@@ -69,12 +69,12 @@ To launch an X-Server on a separate vt:
 
     $ xinit <program> -- :<display> <vt>
 
-where <display> is the X-display and vt is the vt number. I keep these the same,
+where `<display>` is the X-display and `<vt>` is the vt number. I keep these the same,
 but that isn't necessary. I use vt12, so:
 
     $ xinit <program> -- :12 vt12
 
-The <program> is whatever you want the server to run. In my case it is a bash
+The `<program>` is whatever you want the server to run. In my case it is a bash
 script that starts X-Plane but I'll come back to that later.
 
 ### Mouse Cursor
@@ -199,7 +199,7 @@ the script:
 
 ##### Note
 
-I wait for all copies of X-Plane to exit. This is so you can do `File->Exit` on
+I wait for all copies of X-Plane to exit. This is so you can do `File->Quit` on
 each one to close them cleanly. If you don't close X-Plane-10 cleanly it
 complains on the next launch about crashing the time before. Originally with
 X-Plane-9, I waited only for the master coppy of X-Plane and didn't worry about
@@ -218,21 +218,43 @@ be mounted as required by the application. I did this to ease the installation o
 scenery: with `isomounter` I can easily switch between DVD1 and any other scenery
 disc that the installer may ask for.
 
-Usage Summary
--------------
+Usage Examples
+--------------
+
+### Full Version 10 installation
+
+Doing the below with the X-Plane 10 DVD 1 in the drive results in a
+triple-headed configuration of X-Plane-10 full version (for me,
+on my system. *YMMV*):
+
+    $ git clone git://github.com/johnlane/xplane-utils X-Plane-10
+    $ cd X-Plane-10
+    $ ./xpget /dev/sr0
+    $ ./xpiso
+    $ run32 isomounter "X-Plane 10 Installer Linux"
+      (select DVD 1 and install to default location)
+    $ mv ~/"X-Plane 10 Demo" master-centre
+    $ run32 master-centre/X-Plane-i686
+      (Verify it works, and then exit. This writes master configs)
+    $ ./xpslave master-centre slave-{left,right}
+    $ run32 xpstart 
+
+### Web Demo Version 10 installation
 
 Doing the below results in a triple-headed configuration of the X-Plane-10 web 
 demo (for me, on my system. *YMMV*):
 
     $ git clone git://github.com/johnlane/xplane-utils X-Plane-10
     $ cd X-Plane-10
-    $ ./xpget 10
+    $ ./xpget
     $ run32 "X-Plane 10 Demo Installer Linux"
     $ mv ~/"X-Plane 10 Demo" master-centre
     $ run32 master-centre/X-Plane-i686
       (Verify it works, and then exit. This writes master configs)
     $ ./xpslave master-centre slave-{left,right}
     $ run32 xpstart 
+
+### Web Demo Version 9 installation
 
 And doing the below results in a triple-headed configuration of the X-Plane-9 web 
 demo (for me, on my system. *YMMV*):
@@ -247,6 +269,6 @@ demo (for me, on my system. *YMMV*):
     $ ./xpslave master-centre slave-{left,right}
     $ run32 xpstart 
 
-("run32" is an alias that launches my 32-bit chroot: "schroot -p --")
+(`run32` is an alias that launches my 32-bit chroot: `schroot -p --`)
 
-END. JL 121012
+END. JL 041212
