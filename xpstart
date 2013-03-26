@@ -63,6 +63,10 @@ else # X is running: launch applications
     # Our path
     rundir=$(dirname "$0")
 
+    # Architecture
+    arch=$(uname -m)
+    arch=i386
+
     #
     # Configuration of X-Plane screens
     # each screen is a separate instance of X-Plane
@@ -181,7 +185,7 @@ else # X is running: launch applications
         [[ -n ${xsetroot} ]] && ${xsetroot} -cursor_name ${cursor}
 
         # Start X-Plane and add to wait list
-        ${screens[$screen]}/X-Plane-i686 &
+        ${screens[$screen]}/X-Plane-${arch} &
         screen_pids+="$! "
     done
 
