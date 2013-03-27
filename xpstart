@@ -53,19 +53,22 @@ function abort {
 # X Display to use (and virtual terminal to put it on)
 xd=12
 
+# Optional X-Plane-specific Xorg configuration directory
+[[ -d /etc/X11/xorg.xplane.conf.d ]] && configdir='-configdir xorg.xplane.conf.d'
+
 # Start X display if not running (xinit relaunches this script)
 if [[ ! -e /tmp/.X${xd}-lock ]]; then
 
-    xinit $(readlink -f $0) -- :${xd} vt${xd}
+    xinit $(readlink -f $0) -- :${xd} vt${xd} ${configdir}
 
 else # X is running: launch applications
 
     # Our path
     rundir=$(dirname "$0")
 
-    # Architecture
+    # Select architecture: X-Plane supports both 32 and 64 bit architecture
     arch=$(uname -m)
-    arch=i386
+    [[ "$arch" == "i686" ]] && arch=i386
 
     #
     # Configuration of X-Plane screens
