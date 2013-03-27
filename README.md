@@ -34,8 +34,12 @@ will create slaves suitable for use by xpstart, described next.
 ### xpstart
 
 `xpstart` launches a new multi-headed X-Plane session. It launches
-a new X-Server (it assumes an appropriate xorg.conf with sufficient
- X-screens configured).
+a new X-Server. It assumes an appropriately configured xorg.conf that
+has sufficient X-screens configured. This can be the system's default
+configuration or a custom configuration for X-Plane which can be
+provided in `/etc/X11/xorg.xplane.conf.d`. A custom configuration may
+be useful when running X-Plane from an existing desktop environment
+where its xorg configuration differs from what is optimal for X-Plane.
 
 The X-Plane copies are assumed to be called `master-centre`, `slave-left`
 and `slave-right`.

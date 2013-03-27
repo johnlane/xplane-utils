@@ -15,6 +15,8 @@ For the impatient: just read the *Usage Summary* at the end of this file.
 
 John Lane, October 2012.
 
+*Updated March 2013 to incorporate the 64-bit version of X-Plane 10.*
+
 Background
 ----------
 
@@ -33,6 +35,9 @@ a 32-bit chroot for running 32 bit applications.
 
 None of the above is critical to running X-Plane excpet that you need a 32-bit
 environment of some sort. You now know what I have and that it works for me nicely.
+
+*I now run X-Plane 10 as a 64-bit application from within my 64-bit desktop container.
+I no longer need to run it in a 32-bit chroot (although I can, and it still works).*
 
 X-Org configuration
 -------------------
@@ -58,6 +63,12 @@ independently of my dekstop. My X-Org configuration consists of two files:
 
 (copies of these files are included in `doc/xorg`).
 
+To run X-Plane without a chroot but in an environment where another X-Org 
+configuration is in use, the X-Org configuration files for X-Plane's dedicated
+X-Server can be placed in a separate subdirectory `/etc/X11/xorg.xplane.conf.d`
+and the X-Server can be instructed to use that configuration directory instead
+of the default.
+
 When I run X-Plane, I first launch a new X-Server on a separate vt. Because the
 initiation of the X-Server automatically switches the current vt to the one where
 that X-Server is running, this is transparent. It remains transparent when that
@@ -75,7 +86,10 @@ but that isn't necessary. I use vt12, so:
     $ xinit <program> -- :12 vt12
 
 The `<program>` is whatever you want the server to run. In my case it is a bash
-script that starts X-Plane but I'll come back to that later.
+script that starts X-Plane but I'll come back to that later. To use a custom X-Org
+configuration, append a `-configdir` argument, for example:
+
+    $ xinit <program> -- :12 vt12 -configdir xorg.xplane.conf.d
 
 ### Mouse Cursor
 
@@ -163,6 +177,9 @@ I look in `/sys/class/input` to find my devices. Version 9 uses `js` devices whe
 I check for the presence of matching `/dev/input` devices and, if missing, create them
 (using the information from, for example, `/sys/class/input/js0/dev`).
 
+*Note:* if using `systemd` inside an LXC container the above device node setup will
+need to be done inside an autodev hook. This is described [here](https://wiki.archlinux.org/index.php/Lxc-systemd).
+
 ### Hat Switch
 
 To make my hat switch work, I fire up a copy of the ever-useful `jhat` utility with
@@ -188,6 +205,7 @@ the script:
 
   * determines the X-Plane version (it checks the header in X-Plane.prf);
   * looks for an iso image of the X-Plane DVD#1 and, if found, mounts it on /mnt;
+  * determines the system architecture so that it can start the correct executable;
   * locates input devices and ensures device nodes exist;
   * launches jhat (in the background), if available, for the yoke;
   * for each screen:
