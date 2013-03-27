@@ -68,7 +68,6 @@ else # X is running: launch applications
 
     # Select architecture: X-Plane supports both 32 and 64 bit architecture
     arch=$(uname -m)
-    [[ "$arch" == "i686" ]] && arch=i386
 
     #
     # Configuration of X-Plane screens
@@ -94,10 +93,12 @@ else # X is running: launch applications
         10)
             version=10
             input="event"
+            [[ "$arch" == "i686" ]] && arch=i386 # i686 binary name anomaly
             ;;
         9*)
             version=9
             input="js"
+            [[ "$arch" == "i686" ]] || abort "X-Plane version ${version} does not support the ${arch} arctitecture"
             ;;
 
         *)
