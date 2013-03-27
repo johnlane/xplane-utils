@@ -163,8 +163,13 @@ do
     ln -s ${master}/* ./
     rm Output *.txt X-Plane-i386 X-Plane-x86_64
     mkdir Output
-    ln ${master}/X-Plane-i386 . # executable needs to be real: use hard link
-    ln ${master}/X-Plane-x86_64 . # executable needs to be real: use hard link
+
+    # executables need to be real: use hard link
+    for arch in i386 i686 x86_64
+    do
+        [[ -x ${master}/X-Plane-${arch} ]] && ln ${master}/X-Plane-${arch} .
+    done
+
     mkdir -p $(dirname ${slave_xplane_prefs})
 
     # Create empty slave configuration files
