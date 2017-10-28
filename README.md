@@ -142,6 +142,18 @@ Run:
 
     $ ./xpstart
 
+### Xorg wrapper
+
+Since Xorg version 1.16, which [introduced](https://github.com/mirror/xserver/commit/e7b84ca46944895971a8f048c7e34869b7de01c0) [`Xorg.wrap`][man xorg.wrap], the user starting X-Plane needs to have rights to start the X Server. If starting fails with an error like:
+
+    /usr/lib/xorg-server/Xorg.wrap: Only console users are allowed to run the X server
+
+See [man xorg.wrap], and edit `/etc/X11/Xwrapper.config` to include, for example:
+
+    allowed_users = anybody
+
+[man xorg.wrap]: https://www.systutorials.com/docs/linux/man/1-Xorg.wrap
+
 Scope
 -----
 
