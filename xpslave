@@ -86,7 +86,7 @@ master_next_slave_id=19      # suffix of slave in master config
 master_field_of_view=60      # 60=16:10 45=4:3 display (XP10 ONLY)
 
 slave_next_port=49010        # will use ports incrementally from here
-slave_master_id=35           # suffix of master in slave config
+slave_master_id=39           # suffix of master in slave config
 slave_field_of_view=(45 45)  # 60=16:10 45=4:3 display (XP10 ONLY)
 slave_offset_lateral=(-45 +45)
 
@@ -129,6 +129,16 @@ case $(echo -e "${pref_file_header}"| tail -1 | awk '{print $1}') in
         ;;
 esac
 
+# Cater for format change introduced by version 10 update
+# old format: _SettingNumber Value
+# new format: _Setting_Number Value
+if [[ ${version} == 10 ]] && \
+   grep -q '^_[A-Za-z]\+_[0-9]\+ [0-9]\+$' "${master_xplane_prefs}"
+then
+   config_additional=1  # Apply additional settings
+   sep=_  # Additional separator underscore for setting names
+fi
+
 master_screen_prefs=${master}/${screen_prefs}
 
 # Get master's ports
@@ -140,7 +150,7 @@ echo -e "$master_xplane_prefs\trx:$master_rcv_port tx:$master_snd_port"
 sed -i -e "s/\(_is_full_ALL\) [0-9]/\\1 1/" "${master_screen_prefs}"
 
 # Enable framerate display
-sed -i -e "s/\(_Breal0\) [0-9]/\\1 1/" "${master_xplane_prefs}"
+sed -i -e "s/\(_Breal${sep}0\) [0-9]/\\1 1/" "${master_xplane_prefs}"
 
 # Create slave copy
 for slave in $*
@@ -179,8 +189,15 @@ do
     # Set the slave's receive and send UDP ports
     echo -e "_rcv_port ${slave_rcv_port}\n_snd_port ${slave_snd_port}" >> "${slave_xplane_prefs}"
 
+    # Additional settings for version 10 new config only
+    if [[ -n "${config_additional+set}" ]]; then
+        # Set the master's address and port (for version 10 new config only)
+        echo -e "_snd_ip_str${sep}${slave_master_id} ${master_rcv_ip}" >> "${slave_xplane_prefs}"
+        echo -e "_snd_use_ip${sep}${slave_master_id} 1" >> "${slave_xplane_prefs}"
+    fi
+
     # Set slave to full-screen
-    echo    "_Breal0 1" >> "${slave_xplane_prefs}"
+    echo    "_Breal${sep}0 1" >> "${slave_xplane_prefs}"
 
     # Enable framerate display
     echo "_is_full_ALL 1" >> "${slave_screen_prefs}"
@@ -205,9 +222,9 @@ do
     echo -e "_sound_on 0\n_voice_on 0\n_text_out 0" >> "${slave_xplane_prefs}"
 
     # Set the slave's ports in the master's configuration file
-    sed -i -e "s/\(_snd_ip_str${master_slave_id}\) .*/\\1 ${master_snd_ip}/" \
-           -e "s/\(_snd_pt_str${master_slave_id}\) [0-9]*/\\1 ${slave_rcv_port}/" \
-           -e "s/\(_snd_use_ip${master_slave_id}\) [0-9]/\\1 1/" "${master_xplane_prefs}"
+    sed -i -e "s/\(_snd_ip_str${sep}${master_slave_id}\) .*/\\1 ${master_snd_ip}/" \
+           -e "s/\(_snd_pt_str${sep}${master_slave_id}\) [0-9]*/\\1 ${slave_rcv_port}/" \
+           -e "s/\(_snd_use_ip${sep}${master_slave_id}\) [0-9]/\\1 1/" "${master_xplane_prefs}"
 
     popdir 
 
