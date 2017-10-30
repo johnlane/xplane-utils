@@ -171,7 +171,7 @@ do
     mkdir -p ${slave_dir}
     pushdir ${slave_dir}
     ln -s ${master}/* ./
-    rm Output *.txt X-Plane-i386 X-Plane-x86_64
+    rm -f Output *.txt X-Plane-{i386,i686,x86_64}
     mkdir Output
 
     # executables need to be real: use hard link
